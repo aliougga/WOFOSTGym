@@ -2,5 +2,6 @@ from pcse_gym.wrappers.wrappers import NPKDictActionWrapper
 from pcse_gym.wrappers.wrappers import NPKDictObservationWrapper
 from pcse_gym.wrappers.wrappers import RewardFertilizationThresholdWrapper
 from pcse_gym.wrappers.wrappers import RewardFertilizationCostWrapper
+from pcse_gym.wrappers.wrappers import RewardCustomizedWrapper
 from pcse_gym.wrappers.wrappers import NormalizeObservation
 from pcse_gym.wrappers.wrappers import NormalizeReward

@@ -806,3 +806,73 @@ class NormalizeReward(gym.Wrapper):
         rews = rews * (self.reward_range[1] - self.reward_range[0] + 1e-12) + self.reward_range[0]
 
         return rews
+
+
+#Reward function based on marginal yield, efficiency, and penalties for over-fertilization, non-response, and cumulative fertilization
+class RewardCustomFertilization(RewardWrapper):
+    """
+    Reward basée sur :
+    rendement marginal + efficacité + pénalités (surdose + inutilité + cumul)
+    """
+
+    def __init__(self, env: gym.Env, args: Namespace) -> None:
+        super().__init__(env)
+        self.env = env
+
+        # Coefficients (à passer en args)
+        self.eta = args.eta
+        self.alpha = args.alpha
+        self.beta = args.beta
+        self.gamma = args.gamma
+        self.delta = args.delta
+        self.F_seuil = args.F_seuil
+
+        # mémoire
+        self.prev_wso = 0.0
+        self.cum_fert = 0.0
+
+    def reset(self, **kwargs):
+        obs, info = self.env.reset(**kwargs)
+        self.prev_wso = 0.0
+        self.cum_fert = 0.0
+        return obs, info
+
+    def _get_reward(self, output: dict, act_tuple: tuple[float, float, float, float]) -> float:
+
+        #  rendement actuel
+        if output[-1]["WSO"] is None:
+            return 0.0
+
+        wso_t = output[-1]["WSO"]
+
+        # ΔY_t
+        delta_y = wso_t - self.prev_wso
+
+        # Fertilisation (on prend N+P+K uniquement)
+        F_t = sum(act_tuple[:3])
+
+        # cumul
+        self.cum_fert += F_t
+
+        # éviter division par zéro
+        efficiency = (delta_y / F_t) if F_t > 0 else 0.0
+
+        # indicateur non réponse
+        indicator = 1 if delta_y == 0 else 0
+
+        # pénalité seuil
+        excess = max(0, self.cum_fert - self.F_seuil)
+
+        # Calcule reward
+        reward = (
+            self.eta * (delta_y / 100)
+            - self.alpha * (F_t ** 2)
+            + self.beta * efficiency
+            - self.gamma * indicator * F_t
+            - self.delta * excess
+        )
+
+        # update mémoire
+        self.prev_wso = wso_t
+
+        return reward

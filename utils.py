@@ -32,7 +32,7 @@ import pcse_gym.wrappers.wrappers as wrappers
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-@dataclass
+@dataclass          
 class Args:
     """
     Dataclass for configuration a Gym environment
@@ -88,6 +88,16 @@ class Args:
     range_fpath: str = "env_config/state_ranges.yaml"
 
 
+
+    """Les éléments pour le reward customisé """
+    eta: float = 1.0
+    alpha: float = 0.01
+    beta: float = 1.0
+    gamma: float = 1.0
+    delta: float = 0.1
+    F_seuil: float = 200.0
+
+
 HATCHES = [
     ".",  # Small dots
     "",
@@ -122,6 +132,7 @@ def wrap_env_reward(env: gym.Env, args: Namespace) -> FunctionType:
     Function to wrap the environment with a given reward function
     Based on the reward functions created in the pcse_gym/wrappers/
     """
+    
     # Default environment
     if not args.env_reward:
         return env

@@ -1,0 +1,153 @@
+Version: 1.0.0
+Metadata: &meta
+    Creator: Garga ALIOU
+    Contributor: ISDM
+    Contact: aliougga@gmail.com
+    Publisher: ISDM
+    Title: Sol du Ngaoundéré
+    Date: 2026-04-19
+    Language: fr
+    Format: YAML
+    Subject: Profil de sol type pour simuler les cultures dans une ville du Cameroun
+    Description: Profil de sol contenant les métriques hydriques et la balance NPK du sol. Rempli avec des données factices modifiables.
+    Identifier: Sol-Cameroun-001
+    Relation: Aucun
+    Source: Données venant du Ministère de l'Agriculture et du Développement Rural du Cameroun.
+    Type: Sol
+    Coverage:
+       Region: Cameroun Adamaoua
+    Rights: Libre
+    Keyword: Sol, Cameroun, NPK, Hydrologie
+
+EcoTypes:
+  cameroun: &cameroun
+    #
+    # DYNAMIQUE NPK DU SOL (Azote, Phosphore, Potassium)
+    # 
+    BG_N_SUPPLY:
+    - 0.01  # [DONNÉE FACTICE]
+    - Apport de "fond" (naturel) d'Azote (N) par dépôt atmosphérique et pluie chaque jour.
+    - ['kg ha-1 d-1']
+    BG_P_SUPPLY:
+    - 0.001 # [DONNÉE FACTICE]
+    - Apport de fond en Phosphore (P) via atmosphère.
+    - ['kg ha-1 d-1']
+    BG_K_SUPPLY:
+    - 0.01  # [DONNÉE FACTICE]
+    - Apport de fond en Potassium (K) via atmosphère.
+    - ['kg ha-1 d-1']
+    NAVAILI:
+    - 40.0  # [DONNÉE FACTICE: Un sol fertile = +60, Un sol fatigué = -20]
+    - Azote (N) initialement disponible directement dans le "réservoir" du sol le jour 1.
+    - ['kg ha-1']
+    PAVAILI:
+    - 15.0  # [DONNÉE FACTICE]
+    - Phosphore (P) initialement disponible dans la réserve.
+    - ['kg ha-1']
+    KAVAILI:
+    - 25.0  # [DONNÉE FACTICE]
+    - Potassium (K) initialement disponible dans la réserve.
+    - ['kg ha-1']
+    NSOILBASE:
+    - 40.0  # [DONNÉE FACTICE]
+    - Quantité totale d'Azote (N) cachée dans la matière organique et destinée à être minéralisée petit à petit.
+    - ['kg ha-1']
+    NSOILBASE_FR:
+    - 0.02  # [DONNÉE FACTICE: 0.02 veut dire 2% sortent par jour]
+    - Fraction de cet Azote (NSOILBASE) qui se libère et devient disponible par jour.
+    - ['-']
+    PSOILBASE:
+    - 15.0  # [DONNÉE FACTICE]
+    - Quantité totale de Phosphore (P) de base en attente de libération.
+    - ['kg ha-1']
+    PSOILBASE_FR:
+    - 0.01  # [DONNÉE FACTICE]
+    - Fraction de ce Phosphore libéré par jour.
+    - ['-']
+    KSOILBASE:
+    - 50.0  # [DONNÉE FACTICE]
+    - Quantité totale de Potassium (K) de base en attente de libération.
+    - ['kg ha-1']
+    KSOILBASE_FR:
+    - 0.02  # [DONNÉE FACTICE]
+    - Fraction de ce Potassium libéré par jour.
+    - ['-'] 
+    
+    #
+    # BILAN HYDRIQUE (Comportement du sol face à l'eau)
+    # 
+    SMFCF:
+    - 0.3  # [DONNÉE FACTICE: Vers 0.1 pour sol sableux, 0.4 pour sol très argileux]
+    - Capacité au champ : Humidité maximale retenue par le sol contre la gravité (après écoulement des excès 2-3 jours après une pluie).
+    - ['cm3/cm3']
+    SM0:
+    - 0.45 # [DONNÉE FACTICE: Toujours plus grand que SMFCF]
+    - Porosité totale ou point de Saturation : quand chaque trou dans la terre est rempli d'eau (sol gorgé/inondé).
+    - ['cm3/cm3']  
+    SMW:
+    - 0.1  # [DONNÉE FACTICE: Vers 0.05 pour sable sec, 0.2 pour argile rétentive]
+    - Point de flétrissement : le sol est tellement sec que les racines n'arrivent plus à "sucer" l'eau restante. Les plantes sèchent.
+    - ['cm3/cm3']
+    CRAIRC:
+    - 0.06 # [DONNÉE FACTICE]
+    - Seuil critique d'aérobicité : niveau d'oxygène/air minimal requis pour que les racines ne meurent pas noyées.
+    - ['cm3/cm3']
+    SOPE:
+    - 10.0 # [DONNÉE FACTICE: Sable = absorption rapide (>15), Argile dense = absorption lente (<5)]
+    - Vitesse maximale de percolation (écoulement) de la pluie dans la zone des racines.
+    - ['cmday-1']
+    KSUB:
+    - 10.0 # [DONNÉE FACTICE]
+    - Vitesse d'écoulement / fuite de l'eau dans le sous-sol profond (en dessous des racines).
+    - ['cmday-1']
+    RDMSOL: 
+    - 120.0 # [DONNÉE FACTICE: Ajuster s'il y a de la roche dure à 50 cm par exemple]
+    - Profondeur racinaire maximale que le sol permet (terre meuble).
+    - ['cm']
+    IFUNRN: 
+    - 0    # [Option : 0 ou 1]
+    - Indique conditionnellement si la part de pluie qui ne pénètre pas le sol dépend de l'intensité de l'orage (1=oui, 0=non).
+    - ['-']
+    SSMAX: 
+    - 1.5  # [DONNÉE FACTICE]
+    - Hauteur maximale de l'eau de surface sous forme de flaques avant que tout ne ruisselle (déborde).
+    - ['cm']
+    SSI:
+    - 0.0  # [0.0 est standard pour le début]
+    - Flaques de surface présentes au tout début (jour 1) de la simulation.
+    - ['cm']
+    WAV:
+    - 15.0 # [DONNÉE FACTICE]
+    - Quantité pure d'eau (en cm) présente au total dans le sol au début (jour 1).
+    - ['cm']
+    NOTINF:
+    - 0.0  # [DONNÉE FACTICE]
+    - Fraction maximale absolue de pluie incapable de s'infiltrer (ruisselle de suite).
+    - ['-']
+    SMLIM:     
+    - 0.3  # [DONNÉE FACTICE]
+    - Fraction maximale d'humidité volumétrique qu'on autorise dans l'extrême couche supérieure (limite théorique).
+    - ['-']
+    
+    #
+    # EVAPOTRANSPIRATION & CLIMAT
+    # 
+    CO2:
+    - 400.0 # [DONNÉE RÉALISTE POUR LE CO2 ACTUEL]
+    - Concentration du CO2 dans l'air. Aide aux calculs de respiration de la plante.
+    - ['ppm']
+
+Variations:
+  # C'est la variante spécifique que vous allez inscrire dans l'agromanagement !
+  village_cameroun_soil:
+     <<: *cameroun 
+     Metadata:
+        <<: *meta
+        Description: Variation du profil générique appliquée spécifiquement pour la ferme.
+     
+     # INFO: Sous cette variation, on peut redéfinir n'importe quelle variable pour "décaler" le sol sans réécrire l'ancêtre.
+     # Par exemple, si vous trouvez que le sol est finalement plus sableux ici :
+     # SOPE:
+     # - 15.0
+     # - Vitesse d'écoulement plus rapide
+     # - ['cmday-1']

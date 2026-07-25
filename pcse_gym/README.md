@@ -115,4 +115,7 @@ in NPK_Args. With a sufficiently high coefficient, a reward function can be foun
 that strikes the appropriate balance between fertilization and crop growth. 
 
 
-
+3. RewardCustomizedWrapper: reward is a function of WSO minus the total 
+fertilization applied times some coefficient. This coefficient can be specified
+in NPK_Args. With a sufficiently high coefficient, a reward function can be found
+that strikes the appropriate balance between fertilization and crop growth. 
