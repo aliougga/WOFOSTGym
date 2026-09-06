@@ -66,6 +66,8 @@ def make_env(kwargs: Namespace, idx: int = 1, capture_video: bool = False, run_n
         else:
             env = utils.make_gym_env(kwargs, run_name=run_name)
         env = utils.wrap_env_reward(env, kwargs)
+        if getattr(kwargs, "dose_kg_ha", None):
+            env = wrappers.NPKDoseActionWrapper(env, dose_kg_ha=list(kwargs.dose_kg_ha))
         env = wrappers.NormalizeObservation(env)
         env = wrappers.NormalizeReward(env)
         return env
@@ -168,6 +170,8 @@ def eval_policy(
     )
 
     env = utils.wrap_env_reward(env, kwargs)
+    if getattr(kwargs, "dose_kg_ha", None):
+        env = wrappers.NPKDoseActionWrapper(env, dose_kg_ha=list(kwargs.dose_kg_ha))
     env = wrappers.NormalizeObservation(env)
     env = wrappers.NormalizeReward(env)
 
@@ -244,6 +248,8 @@ def eval_policy_lstm(
     )
 
     env = utils.wrap_env_reward(env, kwargs)
+    if getattr(kwargs, "dose_kg_ha", None):
+        env = wrappers.NPKDoseActionWrapper(env, dose_kg_ha=list(kwargs.dose_kg_ha))
     env = wrappers.NormalizeObservation(env)
     env = wrappers.NormalizeReward(env)
 

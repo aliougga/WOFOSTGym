@@ -115,7 +115,14 @@ in NPK_Args. With a sufficiently high coefficient, a reward function can be foun
 that strikes the appropriate balance between fertilization and crop growth. 
 
 
-3. RewardCustomizedWrapper: reward is a function of WSO minus the total 
-fertilization applied times some coefficient. This coefficient can be specified
-in NPK_Args. With a sufficiently high coefficient, a reward function can be found
-that strikes the appropriate balance between fertilization and crop growth. 
+3. RewardCustomFertilization: reward combining marginal yield gain, fertilization
+efficiency, and penalties for over-fertilization, wasted (yield-less) doses, and
+cumulative dose overshoot:
+
+    R_t = eta*(dY_t/100) - alpha*F_t^2 + beta*(dY_t/F_t) - gamma*1[dY_t=0]*F_t - delta*max(0, F_cum - F_seuil)
+
+    where dY_t = WSO_t - WSO_{t-1}, F_t is the N+P+K applied at step t, and
+    F_cum is the cumulative dose applied so far this episode. eta, alpha, beta,
+    gamma, delta and F_seuil are specified via NPK_Args/utils.Args. The
+    beta*(dY_t/F_t) term is skipped (treated as 0) when F_t = 0 to avoid
+    division by zero.

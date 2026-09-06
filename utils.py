@@ -90,12 +90,18 @@ class Args:
 
 
     """Les éléments pour le reward customisé """
-    eta: float = 1.0
-    alpha: float = 0.01
-    beta: float = 1.0
-    gamma: float = 1.0
-    delta: float = 0.1
+    eta: float = 5.0
+    alpha: float = 0.1
+    beta: float = 10.0
+    gamma: float = 5.0
+    delta: float = 0.5
     F_seuil: float = 200.0
+
+    """Fixed set of allowed Nitrogen fertilization doses in kg/ha. If specified,
+    wraps the environment with `NPKDoseActionWrapper`, restricting the action
+    space to exactly these doses. Requires `env_id="ln-v0"` and
+    `npk.fert_amount=1.0` with `npk.num_fert >= max(dose_kg_ha)`."""
+    dose_kg_ha: Optional[List[float]] = None
 
 
 HATCHES = [

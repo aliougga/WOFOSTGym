@@ -427,6 +427,65 @@ class NPKDictActionWrapper(gym.ActionWrapper):
         return offsets
 
 
+class NPKDoseActionWrapper(gym.ActionWrapper):
+    """Restricts Nitrogen fertilization to a fixed, non-uniform set of doses.
+
+    Exposes a small ``Discrete(len(dose_kg_ha))`` action space where action
+    ``i`` applies exactly ``dose_kg_ha[i]`` kg N/ha (index 0 must map to a
+    dose of 0, i.e. no fertilization).
+
+    Must wrap a `Limited_N_Env` (`ln-v0`) configured with `fert_amount=1.0`
+    and `num_fert >= max(dose_kg_ha)`. The base environment applies
+    `fert_amount * level` kg N/ha for integer action `level`, so with
+    `fert_amount=1.0` the level equals the dose in kg N/ha exactly, letting
+    this wrapper represent an arbitrary, non-uniform set of doses without
+    modifying the base environment's action logic.
+    """
+
+    def __init__(self, env: gym.Env, dose_kg_ha: list = [0, 40, 70, 80, 100]) -> None:
+        """Initialize the :class:`NPKDoseActionWrapper` wrapper with an environment.
+
+        Args:
+            env: The Gymnasium Environment (must be `Limited_N_Env`/`ln-v0`)
+            dose_kg_ha: list of allowed N doses in kg/ha, must include 0
+        """
+        super().__init__(env)
+        self.env = env
+
+        assert 0 in dose_kg_ha, "`dose_kg_ha` must include `0` for the no-fertilization action"
+
+        fert_amount = self.env.unwrapped.fert_amount
+        num_fert = self.env.unwrapped.num_fert
+        for dose in dose_kg_ha:
+            level = dose / fert_amount
+            assert level == int(level) and 0 <= level <= num_fert, (
+                f"Dose `{dose}` kg N/ha cannot be represented exactly given "
+                f"`fert_amount={fert_amount}` and `num_fert={num_fert}`. Configure the "
+                f"environment with `fert_amount=1.0` and `num_fert >= max(dose_kg_ha)`."
+            )
+
+        self.dose_kg_ha = list(dose_kg_ha)
+        self.fert_amount = fert_amount
+        self.action_space = Discrete(len(self.dose_kg_ha))
+
+    def action(self, action: int) -> int:
+        """Converts the logical dose index to the base environment's integer action.
+
+        Args:
+            action: index into `self.dose_kg_ha`
+        """
+        dose = self.dose_kg_ha[int(action)]
+        if dose == 0:
+            return 0
+        return int(round(dose / self.fert_amount))
+
+    def reset(self, **kwargs: dict) -> tuple[np.ndarray, dict]:
+        """
+        Forward keyword environments to base env
+        """
+        return self.env.reset(**kwargs)
+
+
 class RewardWrapper(gym.Wrapper, ABC):
     """Abstract class for all reward wrappers
 
