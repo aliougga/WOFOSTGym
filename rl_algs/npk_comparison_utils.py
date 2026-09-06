@@ -255,6 +255,7 @@ def train_dqn_quick(args: utils.Args, total_timesteps: int = 20000, **dqn_kwargs
 # ----------------------------------------------------------------------------
 
 CATEGORICAL_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100"]
+REWARD_TERM_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4"]
 MUTED_COLOR = "#52514e"
 GRID_COLOR = "#e1e0d9"
 TEXT_PRIMARY = "#0b0b0b"
@@ -402,8 +403,108 @@ def plot_nitrogen_dynamics(episodes: dict, save_path: Optional[str] = None) -> N
     plt.show()
 
 
-def plot_all(episodes: dict, save_dir: Optional[str] = None) -> None:
-    """Convenience wrapper generating the three comparison figures in order."""
+def compute_reward_components(episode: dict, args: utils.Args) -> dict:
+    """Recompute the article's reward equation term-by-term directly from a
+    `rollout()` trace (`dose`, `WSO`), independently of `RewardCustomFertilization`,
+    so the two can be cross-checked to validate the implementation:
+
+        R_t = eta*(dY_t/100) - alpha*F_t^2 + beta*(dY_t/F_t)
+              - gamma*Ind[dY_t=0]*F_t - delta*max(0, F_cum - F_seuil)
+
+    `args` must carry the same `eta`/`alpha`/`beta`/`gamma`/`delta`/`F_seuil`
+    coefficients used to build the environment (see `utils.Args`), otherwise
+    the comparison is meaningless.
+
+    Returns a dict with `day`, one array per term (`term_yield`,
+    `term_overdose`, `term_efficiency`, `term_non_response`, `term_threshold`),
+    `reconstructed_reward` (their sum) and `actual_reward` (from the rollout,
+    i.e. what `RewardCustomFertilization._get_reward` actually returned).
+    """
+    wso = np.asarray(episode["WSO"], dtype=float)
+    dose = np.asarray(episode["dose"], dtype=float)
+
+    # dY_t = WSO_t - WSO_{t-1}, with WSO_{-1} := 0 to match RewardCustomFertilization's
+    # `self.prev_wso = 0.0` initialization in `reset()`.
+    delta_y = np.diff(wso, prepend=0.0)
+    F_t = dose
+    F_cum = np.cumsum(F_t)
+
+    term_yield = args.eta * (delta_y / 100.0)
+    term_overdose = -args.alpha * (F_t**2)
+    efficiency = np.where(F_t > 0, delta_y / np.where(F_t > 0, F_t, 1.0), 0.0)
+    term_efficiency = args.beta * efficiency
+    indicator = (delta_y == 0).astype(float)
+    term_non_response = -args.gamma * indicator * F_t
+    excess = np.maximum(0.0, F_cum - args.F_seuil)
+    term_threshold = -args.delta * excess
+
+    reconstructed = term_yield + term_overdose + term_efficiency + term_non_response + term_threshold
+
+    return {
+        "day": episode["day"],
+        "term_yield": term_yield,
+        "term_overdose": term_overdose,
+        "term_efficiency": term_efficiency,
+        "term_non_response": term_non_response,
+        "term_threshold": term_threshold,
+        "reconstructed_reward": reconstructed,
+        "actual_reward": np.asarray(episode["reward"], dtype=float),
+    }
+
+
+REWARD_TERMS = (
+    ("term_yield", r"Rendement marginal : $+\eta \cdot \Delta Y_t / 100$"),
+    ("term_overdose", r"Pénalité de surdose : $-\alpha \cdot F_t^2$"),
+    ("term_efficiency", r"Efficacité : $+\beta \cdot \Delta Y_t / F_t$"),
+    ("term_non_response", r"Pénalité de non-réponse : $-\gamma \cdot \mathrm{Ind}[\Delta Y_t=0] \cdot F_t$"),
+    ("term_threshold", r"Pénalité de seuil : $-\delta \cdot \max(0, F_{cum}-F_{seuil})$"),
+)
+
+
+def plot_reward_validation(episode: dict, args: utils.Args, name: str = "", save_path: Optional[str] = None) -> None:
+    """Plot 4 (validation): recomputes R_t term-by-term straight from the
+    article's equation and overlays the reconstructed total against the
+    reward actually returned by `RewardCustomFertilization` during the
+    rollout. The two should coincide up to floating-point error — this is
+    the plot that *validates* the reward implementation against the article.
+    """
+    set_paper_style()
+    comp = compute_reward_components(episode, args)
+
+    fig, axes = plt.subplots(len(REWARD_TERMS) + 1, 1, figsize=(8.0, 1.9 * (len(REWARD_TERMS) + 1)), sharex=True)
+
+    for ax, (key, label), color in zip(axes[:-1], REWARD_TERMS, REWARD_TERM_COLORS):
+        ax.plot(comp["day"], comp[key], color=color, linewidth=1.6)
+        ax.axhline(0, color=GRID_COLOR, linewidth=0.8, zorder=0)
+        ax.set_title(label, loc="left", fontsize=9, fontweight="normal")
+        ax.grid(True, color=GRID_COLOR, linewidth=0.5)
+        _strip_spines(ax)
+
+    ax = axes[-1]
+    ax.plot(comp["day"], comp["actual_reward"], color=TEXT_PRIMARY, linewidth=2.0,
+             label="Récompense retournée par l'environnement (RewardCustomFertilization)")
+    ax.plot(comp["day"], comp["reconstructed_reward"], color=REWARD_TERM_COLORS[0], linewidth=1.4, linestyle="--",
+             label="Somme des 5 termes de l'article ($R_t$)")
+    ax.set_title("Récompense totale : implémentation vs équation de l'article", loc="left", fontsize=9)
+    ax.set_xlabel("Jours après semis")
+    ax.grid(True, color=GRID_COLOR, linewidth=0.5)
+    _strip_spines(ax)
+    ax.legend(frameon=False, fontsize=8, loc="best")
+
+    max_err = float(np.nanmax(np.abs(comp["actual_reward"] - comp["reconstructed_reward"])))
+    title = f"Validation de la fonction de récompense — {name}" if name else "Validation de la fonction de récompense"
+    fig.suptitle(f"{title}  (erreur max implémentation/article = {max_err:.2e})", fontweight="bold", fontsize=11)
+    fig.tight_layout()
+    if save_path:
+        fig.savefig(save_path, bbox_inches="tight")
+    plt.show()
+
+
+def plot_all(episodes: dict, args: utils.Args, save_dir: Optional[str] = None) -> None:
+    """Convenience wrapper generating the comparison figures in order,
+    followed by one reward-validation figure per policy. `args` must be the
+    `utils.Args` used to build the environments (for the reward coefficients
+    used by `plot_reward_validation`)."""
     paths = (None, None, None)
     if save_dir is not None:
         os.makedirs(save_dir, exist_ok=True)
@@ -415,3 +516,7 @@ def plot_all(episodes: dict, save_dir: Optional[str] = None) -> None:
     plot_yield_and_fertilization(episodes, save_path=paths[0])
     plot_cumulative_reward(episodes, save_path=paths[1])
     plot_nitrogen_dynamics(episodes, save_path=paths[2])
+
+    for name, ep in episodes.items():
+        val_path = os.path.join(save_dir, f"reward_validation_{name}.png") if save_dir is not None else None
+        plot_reward_validation(ep, args, name=name, save_path=val_path)

@@ -870,8 +870,27 @@ class NormalizeReward(gym.Wrapper):
 #Reward function based on marginal yield, efficiency, and penalties for over-fertilization, non-response, and cumulative fertilization
 class RewardCustomFertilization(RewardWrapper):
     """
-    Reward basée sur :
-    rendement marginal + efficacité + pénalités (surdose + inutilité + cumul)
+    Implémentation exacte de la fonction de récompense de l'article (section
+    "Fonction de récompense R") :
+
+        R_t = eta * (dY_t / 100) - alpha * F_t^2 + beta * (dY_t / F_t)
+              - gamma * Ind[dY_t = 0] * F_t - delta * max(0, F_cum - F_seuil)
+
+    Correspondance symbole article -> code :
+        eta, alpha, beta, gamma, delta, F_seuil  -> args.eta / .alpha / .beta / .gamma / .delta / .F_seuil
+        dY_t = WSO_t - WSO_{t-1}                 -> delta_y (self.prev_wso mémorise WSO_{t-1})
+        F_t (dose appliquée au jour t)            -> F_t = sum(act_tuple[:3]) = N+P+K appliqués ce jour
+                                                      (avec l'environnement `ln-v0`/Limited_N_Env utilisé
+                                                      par l'article, act_tuple = (N, 0, 0, 0), donc F_t
+                                                      est exactement la dose d'azote de l'action discrète
+                                                      A = {0, 40, 70, 80, 100})
+        F_cum (cumul depuis le début de la saison) -> self.cum_fert
+        Ind[dY_t = 0]                              -> indicator
+
+    Les 5 termes sont, dans l'ordre de l'équation : rendement marginal (+),
+    surdose (-), efficacité (+), non-réponse (-), dépassement de seuil (-).
+    Voir `rl_algs/npk_comparison_utils.py::plot_reward_validation` pour une
+    vérification numérique terme à terme de cette implémentation.
     """
 
     def __init__(self, env: gym.Env, args: Namespace) -> None:
@@ -904,25 +923,25 @@ class RewardCustomFertilization(RewardWrapper):
 
         wso_t = output[-1]["WSO"]
 
-        # ΔY_t
+        # delta_y = dY_t = WSO_t - WSO_{t-1}
         delta_y = wso_t - self.prev_wso
 
-        # Fertilisation (on prend N+P+K uniquement)
+        # F_t : dose appliquée au jour t (on prend N+P+K uniquement ; = dose N sur ln-v0)
         F_t = sum(act_tuple[:3])
 
-        # cumul
+        # F_cum : cumul des apports depuis le début de la campagne
         self.cum_fert += F_t
 
-        # éviter division par zéro
+        # beta * (dY_t / F_t), éviter la division par zéro quand F_t = 0
         efficiency = (delta_y / F_t) if F_t > 0 else 0.0
 
-        # indicateur non réponse
+        # Ind[dY_t = 0] : indicateur de non-réponse à la fertilisation
         indicator = 1 if delta_y == 0 else 0
 
-        # pénalité seuil
+        # max(0, F_cum - F_seuil) : dépassement du seuil de référence
         excess = max(0, self.cum_fert - self.F_seuil)
 
-        # Calcule reward
+        # R_t = eta*(dY_t/100) - alpha*F_t^2 + beta*(dY_t/F_t) - gamma*Ind[dY_t=0]*F_t - delta*max(0, F_cum-F_seuil)
         reward = (
             self.eta * (delta_y / 100)
             - self.alpha * (F_t ** 2)

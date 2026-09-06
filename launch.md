@@ -209,24 +209,57 @@ Ceci produit `results/dqn_cameroun/simulation_cameroun.npz`.
 
 ## 9. Visualiser les résultats de la simulation
 
-```bash
-!python3 -m data_plotting.vis_data \
-  --data-file results/dqn_cameroun/simulation_cameroun.npz \
-  --plt plot_output \
-  --fig-folder figures/dqn_cameroun/
+> **Important : lancez la visualisation dans une cellule Python du notebook, pas via
+> `!python3 ...`.** Une commande précédée de `!` s'exécute dans un **sous-processus**
+> séparé du noyau (kernel) du notebook : `plt.show()` n'y affiche rien à l'écran, la
+> figure est seulement écrite en `.png` sur disque — d'où l'impression que les
+> graphiques ne sont que "téléchargeables" et jamais visibles directement. Pour un
+> affichage inline réel dans Colab, appelez les fonctions Python directement dans une
+> cellule (import, pas `!python3`) : c'est le même noyau que celui qui écrit dans le
+> notebook, donc chaque figure s'affiche automatiquement sous la cellule.
+
+Pour les résultats liés à l'article (comparaison DQN vs politique experte, et surtout
+la **validation de la fonction de récompense**), utilisez directement
+`rl_algs/npk_comparison_utils.py`, qui produit des figures "publication" stylées et
+valide numériquement l'implémentation de $R_t$ contre l'équation de l'article :
+
+```python
+import utils
+from rl_algs import npk_comparison_utils as ncu
+
+args = utils.Args(npk=None, env_id="ln-v0", save_folder="results/dqn_cameroun/",
+                   agro_file="maize_agro.yaml", env_reward="RewardCustomFertilization")
+ncu.configure_npk_args(args, dose_kg_ha=[0, 40, 70, 80, 100])  # remplit args.npk
+args.npk.ag.latitude, args.npk.ag.longitude, args.npk.ag.year = 7.32, 13.58, 2015
+args.npk.ag.soil_name, args.npk.ag.soil_variation = "cameroun", "village_cameroun_soil"
+
+env, policy = ncu.load_dqn_policy(args, "logs/dqn_cameroun/DQN/<run_name>/agent.pt")
+episode = ncu.rollout(env, policy)
+ncu.summarize_episode("DQN", episode)
+
+# Les 3 figures de comparaison + la figure de validation de la récompense (terme
+# par terme, avec l'erreur max entre l'implémentation et l'équation de l'article)
+# s'affichent directement sous la cellule, ET sont enregistrées en .png si
+# `save_dir` est fourni :
+ncu.plot_all({"DQN": episode}, args, save_dir="figures/dqn_cameroun/")
 ```
 
-> Si cette commande échoue avec `ModuleNotFoundError: No module named 'utils'`, assurez-vous
-> d'exécuter depuis la racine du dépôt avec `-m data_plotting.vis_data` (et pas
-> `python3 data_plotting/vis_data.py`).
+Pour une inspection rapide et générique de n'importe quelle variable d'un `.npz`
+(sans passer par le pipeline article), la même règle "cellule Python, pas `!python3`"
+s'applique à `data_plotting.vis_data` :
 
-Les graphiques (biomasse `WSO`, stade de développement `DVS`, azote/phosphore/potassium
-disponibles `NAVAIL`/`PAVAIL`/`KAVAIL`, humidité du sol `SM`, irrigation cumulée
-`TOTIRRIG`, etc.) s'affichent directement dans le notebook (backend inline de Colab) et
-sont aussi enregistrés en `.png` dans `figures/dqn_cameroun/`.
+```python
+import utils
+import data_plotting.vis_data as vis_data
 
-Pour un affichage rapide sans passer par le script, vous pouvez aussi charger le `.npz`
-vous-même dans une cellule Colab :
+args = ...  # le PlotArgs utilisé pour la simulation, ou reconstruit comme au step 6
+obs, actions, rewards, next_obs, dones, output_vars = utils.load_data_file(
+    "results/dqn_cameroun/simulation_cameroun.npz"
+)
+vis_data.plot_output(args, output_vars=output_vars, obs=obs, rewards=rewards, save=True)
+```
+
+Ou, sans dépendance au reste du projet, en chargeant le `.npz` à la main :
 
 ```python
 import numpy as np
@@ -242,6 +275,10 @@ plt.ylabel("WSO (biomasse des organes de réserve, kg/ha)")
 plt.title("Simulation DQN — maïs, Ngaoundéré, Cameroun (2015)")
 plt.show()
 ```
+
+Dans tous les cas, les figures restent aussi enregistrées en `.png` (paramètres
+`save_dir`/`fig_folder`/`save`) pour l'article — l'affichage inline et
+l'enregistrement sur disque ne s'excluent pas.
 
 ---
 
